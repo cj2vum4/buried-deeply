@@ -14,8 +14,11 @@
       ? window.matchMedia("(pointer: fine)").matches
       : true;
 
-  /** 內層縮放 UI（電腦+手機）：+/- 放大圖片 */
-  const zoomChrome = !reduceMotion;
+  /**
+   * 依需求：不顯示放大/縮小圖示（UI）。
+   * 但電腦端仍允許用 Ctrl+滾輪、+/-/0 縮放圖片以方便閱讀。
+   */
+  const zoomEnabled = desktopZoom && !reduceMotion;
 
   let current = 0;
   let animating = false;
@@ -27,9 +30,7 @@
   if (desktopZoom) {
     book.classList.add("desktop-zoom");
   }
-  if (zoomChrome) {
-    book.classList.add("has-zoom-chrome");
-  }
+  // 不顯示任何縮放 UI（但可用快捷鍵/滾輪縮放）
 
   let lastZoomResetAtPage = -1;
   let zoomScale = 1;
@@ -58,7 +59,7 @@
 
   function applyZoomToCurrent() {
     applyZoomToInner(getInner(pages[current]));
-    if (zoomChrome) {
+    if (zoomEnabled) {
       book.classList.toggle("can-pan", zoomScale > 1.03);
     }
   }
@@ -156,7 +157,7 @@
   }
 
   function applyStaticView() {
-    if (zoomChrome && lastZoomResetAtPage !== current) {
+    if (zoomEnabled && lastZoomResetAtPage !== current) {
       lastZoomResetAtPage = current;
       resetDesktopZoomState();
     }
@@ -192,7 +193,7 @@
   document.addEventListener("keydown", function (e) {
     const tag = e.target && e.target.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA") return;
-    if (desktopZoom) {
+    if (zoomEnabled) {
       if (e.key === "+" || e.key === "=") {
         e.preventDefault();
         zoomIn();
@@ -214,60 +215,21 @@
     if (e.key === "ArrowLeft") prevPage();
   });
 
-  /** 內層縮放 + 放大後拖曳平移（不影響翻頁按鈕） */
-  if (zoomChrome) {
-    const bar = document.createElement("div");
-    bar.id = "zoom-controls";
-    bar.setAttribute("aria-label", "縮放");
-    const hintText = desktopZoom
-      ? "Ctrl + 滾輪 縮放 · 放大後可拖曳平移"
-      : "＋／− 縮放圖片 · 放大後可拖曳平移";
-    if (!desktopZoom) bar.classList.add("touch-bar");
-    bar.innerHTML =
-      '<span class="zoom-hint">' +
-      hintText +
-      "</span>" +
-      '<div class="zoom-buttons">' +
-      '<button type="button" class="zoom-btn" id="zoom-out" title="縮小">−</button>' +
-      '<span id="zoom-level">100%</span>' +
-      '<button type="button" class="zoom-btn" id="zoom-in" title="放大">+</button>' +
-      '<button type="button" class="zoom-btn" id="zoom-reset" title="重設為 100%">100%</button>' +
-      "</div>";
-
-    document.body.appendChild(bar);
-
-    document.getElementById("zoom-in").addEventListener("click", function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      zoomIn();
-    });
-    document.getElementById("zoom-out").addEventListener("click", function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      zoomOut();
-    });
-    document.getElementById("zoom-reset").addEventListener("click", function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      resetDesktopZoomState();
-    });
-
-    if (desktopZoom) {
-      book.addEventListener(
-        "wheel",
-        function (e) {
-          if (!e.ctrlKey && !e.metaKey) return;
-          e.preventDefault();
-          if (e.deltaY < 0) zoomIn();
-          else zoomOut();
-        },
-        { passive: false }
-      );
-    }
+  // 電腦端縮放：不顯示 UI，但保留 Ctrl+滾輪/拖曳平移。
+  if (zoomEnabled) {
+    book.addEventListener(
+      "wheel",
+      function (e) {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        if (e.deltaY < 0) zoomIn();
+        else zoomOut();
+      },
+      { passive: false }
+    );
 
     book.addEventListener("pointerdown", function (e) {
       if (e.target.closest(".controls")) return;
-      if (e.target.closest("#zoom-controls")) return;
       if (zoomScale <= 1.03) return;
       if (!e.target.closest(".page-zoom-wrap")) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -290,16 +252,9 @@
 
     window.addEventListener("pointerup", function (e) {
       if (!panDrag || e.pointerId !== panDrag.pointerId) return;
-      const dx = e.clientX - panDrag.sx;
-      const dy = e.clientY - panDrag.sy;
-      if (Math.hypot(dx, dy) > 10) {
-        suppressClick = true;
-        window.setTimeout(function () {
-          suppressClick = false;
-        }, 220);
-      }
       panDrag = null;
     });
+
     window.addEventListener("pointercancel", function (e) {
       if (!panDrag || e.pointerId !== panDrag.pointerId) return;
       panDrag = null;
