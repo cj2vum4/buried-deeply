@@ -159,7 +159,7 @@ button:hover {
   z-index: 100;
 }
 
-/* 電腦版：縮放工具列 */
+/* 縮放工具列（電腦右上／手機置中偏下，避免擋內容） */
 #zoom-controls {
   position: fixed;
   top: 14px;
@@ -171,6 +171,22 @@ button:hover {
   gap: 8px;
   font-size: 13px;
   color: #ccc;
+}
+
+#zoom-controls.touch-bar {
+  top: auto;
+  bottom: 88px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  align-items: center;
+  max-width: calc(100vw - 20px);
+}
+
+#zoom-controls.touch-bar .zoom-hint {
+  text-align: center;
+  font-size: 12px;
+  max-width: 100%;
 }
 
 .zoom-hint {
