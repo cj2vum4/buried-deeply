@@ -131,6 +131,8 @@ body {
   height: 100%;
   display: block;
   object-fit: contain;
+  /* 桌機 Chrome 對縮小顯示的掃描字更銳利（不影響直接開圖） */
+  image-rendering: -webkit-optimize-contrast;
   background: #f5f0e8;
   box-shadow:
     0 4px 6px rgba(0, 0, 0, 0.12),

@@ -32,6 +32,21 @@
   }
   // 不顯示任何縮放 UI（但可用快捷鍵/滾輪縮放）
 
+  // GitHub Pages / 桌機 Chrome：容器落在非整數像素時，掃描字縮小顯示更容易糊。
+  // 這裡把 #book 的實際寬高「對齊整數 CSS 像素」，通常可明顯改善。
+  function snapBookBox() {
+    if (!desktopZoom) return;
+    // 若正在縮放/平移，避免強制改尺寸造成手感跳動
+    if (zoomScale !== 1 || panX !== 0 || panY !== 0) return;
+    book.style.width = "";
+    book.style.height = "";
+    const r = book.getBoundingClientRect();
+    const w = Math.max(240, Math.round(r.width));
+    const h = Math.max(240, Math.round(r.height));
+    book.style.width = w + "px";
+    book.style.height = h + "px";
+  }
+
   let lastZoomResetAtPage = -1;
   let zoomScale = 1;
   let panX = 0;
@@ -157,6 +172,7 @@
   }
 
   function applyStaticView() {
+    snapBookBox();
     if (zoomEnabled && lastZoomResetAtPage !== current) {
       lastZoomResetAtPage = current;
       resetDesktopZoomState();
@@ -260,6 +276,11 @@
       panDrag = null;
     });
   }
+
+  window.addEventListener("resize", function () {
+    snapBookBox();
+    applyZoomToCurrent();
+  });
 
   applyStaticView();
 })();
