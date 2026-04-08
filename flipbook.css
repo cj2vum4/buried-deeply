@@ -1,0 +1,140 @@
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at center, #1a1a1a 0%, #0a0a0a 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: sans-serif;
+}
+
+#book {
+  position: relative;
+  width: 90vw;
+  max-width: 1000px;
+  height: 90vh;
+  -webkit-perspective: 1600px;
+  perspective: 1600px;
+  perspective-origin: 50% 50%;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+/* 手機拖曳翻頁時避免整頁捲動、誤選文字 */
+#book.interactive-touch {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+  pointer-events: none;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform-origin: left center;
+  transition:
+    transform 0.58s cubic-bezier(0.33, 0.86, 0.36, 1),
+    box-shadow 0.58s ease,
+    filter 0.35s ease;
+  will-change: transform;
+}
+
+.page.no-flip-transition {
+  transition: none !important;
+}
+
+.page.is-active {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.page img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #f5f0e8;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.12),
+    0 12px 28px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+}
+
+/* 往下一頁：目前頁以左側為軸往內翻走（像從右頁往左翻） */
+.page.flip-out-next {
+  z-index: 3 !important;
+  visibility: visible !important;
+  transform: rotateY(-92deg) translateZ(-4px);
+  transform-origin: left center;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+  filter: brightness(0.92);
+}
+
+/* 下一頁在底下等待 */
+.page.below-next {
+  visibility: visible !important;
+  z-index: 1 !important;
+  transform: rotateY(0deg);
+}
+
+/* 往上一頁：目前頁以右側為軸翻出 */
+.page.flip-out-prev {
+  z-index: 3 !important;
+  visibility: visible !important;
+  transform: rotateY(92deg) translateZ(-4px);
+  transform-origin: right center;
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
+  filter: brightness(0.92);
+}
+
+.page.below-prev {
+  visibility: visible !important;
+  z-index: 1 !important;
+  transform: rotateY(0deg);
+  transform-origin: right center;
+}
+
+.controls {
+  position: fixed;
+  bottom: 20px;
+  display: flex;
+  gap: 20px;
+  z-index: 100;
+}
+
+button {
+  padding: 10px 20px;
+  border: none;
+  background: #333;
+  color: white;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+button:hover {
+  background: #555;
+}
+
+#page-indicator {
+  position: fixed;
+  bottom: 70px;
+  color: #aaa;
+  font-size: 14px;
+  z-index: 100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    transition: none !important;
+    filter: none !important;
+  }
+}
