@@ -19,19 +19,23 @@ body {
 
 .container {
   text-align: center;
-  padding: 24px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  max-width: 360px;
+  margin: 0 auto;
 }
 
 h1 {
-  margin-bottom: 40px;
+  margin: 0 0 24px;
+  font-size: clamp(1.15rem, 4vw, 1.35rem);
+  font-weight: 600;
 }
 
 button {
   display: block;
-  width: min(280px, 90vw);
-  margin: 15px auto;
-  padding: 15px;
-  font-size: 18px;
+  width: min(260px, 88vw);
+  margin: 10px auto;
+  padding: 10px 14px;
+  font-size: 15px;
   border: none;
   border-radius: 8px;
   background: #333;
@@ -42,7 +46,7 @@ button {
 
 button:hover {
   background: #555;
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 </style>
 </head>
