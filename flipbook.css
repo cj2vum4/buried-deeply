@@ -46,11 +46,6 @@ body {
     )
   );
   min-height: 240px;
-  -webkit-perspective: 1400px;
-  perspective: 1400px;
-  perspective-origin: 50% 50%;
-  -webkit-transform-style: preserve-3d;
-  transform-style: preserve-3d;
 }
 
 @media (min-width: 900px) {
@@ -103,16 +98,6 @@ body {
   height: 100%;
   visibility: hidden;
   pointer-events: none;
-  -webkit-transform-style: preserve-3d;
-  transform-style: preserve-3d;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  transform-origin: left center;
-  transition:
-    transform 0.58s cubic-bezier(0.33, 0.86, 0.36, 1),
-    box-shadow 0.58s ease,
-    filter 0.35s ease;
-  will-change: transform;
 }
 
 .page.no-flip-transition {
@@ -161,39 +146,7 @@ body {
   cursor: grabbing;
 }
 
-/* 往下一頁：目前頁以左側為軸往內翻走（像從右頁往左翻） */
-.page.flip-out-next {
-  z-index: 3 !important;
-  visibility: visible !important;
-  transform: rotateY(-92deg) translateZ(-4px);
-  transform-origin: left center;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
-  filter: brightness(0.92);
-}
-
-/* 下一頁在底下等待 */
-.page.below-next {
-  visibility: visible !important;
-  z-index: 1 !important;
-  transform: rotateY(0deg);
-}
-
-/* 往上一頁：目前頁以右側為軸翻出 */
-.page.flip-out-prev {
-  z-index: 3 !important;
-  visibility: visible !important;
-  transform: rotateY(92deg) translateZ(-4px);
-  transform-origin: right center;
-  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
-  filter: brightness(0.92);
-}
-
-.page.below-prev {
-  visibility: visible !important;
-  z-index: 1 !important;
-  transform: rotateY(0deg);
-  transform-origin: right center;
-}
+/* 依需求：不做翻頁特效，僅顯示/隱藏頁面 */
 
 .controls {
   position: fixed;
