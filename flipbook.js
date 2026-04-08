@@ -8,20 +8,14 @@
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /** 以粗指標／觸控為主裝置：啟用拖曳半翻 */
-  const interactiveTouch =
-    !reduceMotion &&
-    typeof window.matchMedia === "function" &&
-    (window.matchMedia("(pointer: coarse)").matches ||
-      window.matchMedia("(hover: none)").matches);
+  /** 電腦／細指標：Ctrl+滾輪縮放、拖曳平移 */
+  const desktopZoom =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(pointer: fine)").matches
+      : true;
 
-  const FLIP_MS = 580;
-  const MAX_ANGLE = 92;
-  /** 拖滿此距離（px）≈ 翻滿一頁；可中途停住 */
-  function fullDragPx() {
-    const w = book.offsetWidth || window.innerWidth;
-    return Math.max(140, Math.min(window.innerWidth, w) * 0.48);
-  }
+  /** 內層縮放 UI（電腦+手機）：+/- 放大圖片 */
+  const zoomChrome = !reduceMotion;
 
   let current = 0;
   let animating = false;
@@ -30,18 +24,102 @@
   const indicator = document.getElementById("page-indicator");
   const pages = [];
 
-  if (interactiveTouch) {
-    book.classList.add("interactive-touch");
+  if (desktopZoom) {
+    book.classList.add("desktop-zoom");
+  }
+  if (zoomChrome) {
+    book.classList.add("has-zoom-chrome");
+  }
+
+  let lastZoomResetAtPage = -1;
+  let zoomScale = 1;
+  let panX = 0;
+  let panY = 0;
+  let panDrag = null;
+  const ZOOM_MIN = 1;
+  const ZOOM_MAX = 4.5;
+  const ZOOM_STEP = 1.12;
+
+  function getInner(pageEl) {
+    return pageEl ? pageEl.querySelector(".page-zoom-inner") : null;
+  }
+
+  function applyZoomToInner(inner) {
+    if (!inner) return;
+    inner.style.transform =
+      "translate(" + panX + "px," + panY + "px) scale(" + zoomScale + ")";
+  }
+
+  function applyZoomToCurrent() {
+    applyZoomToInner(getInner(pages[current]));
+    if (zoomChrome) {
+      book.classList.toggle("can-pan", zoomScale > 1.03);
+    }
+  }
+
+  function clampPan() {
+    if (zoomScale <= 1) {
+      panX = 0;
+      panY = 0;
+      return;
+    }
+    const w = book.offsetWidth || 1;
+    const h = book.offsetHeight || 1;
+    const marginX = ((zoomScale - 1) * w) / 2;
+    const marginY = ((zoomScale - 1) * h) / 2;
+    panX = Math.max(-marginX, Math.min(marginX, panX));
+    panY = Math.max(-marginY, Math.min(marginY, panY));
+  }
+
+  function updateZoomLabel() {
+    const zl = document.getElementById("zoom-level");
+    if (zl) zl.textContent = Math.round(zoomScale * 100) + "%";
+  }
+
+  function resetDesktopZoomState() {
+    zoomScale = 1;
+    panX = 0;
+    panY = 0;
+    book.classList.remove("can-pan");
+    pages.forEach(function (p) {
+      applyZoomToInner(getInner(p));
+    });
+    updateZoomLabel();
+  }
+
+  function zoomIn() {
+    zoomScale = Math.min(ZOOM_MAX, zoomScale * ZOOM_STEP);
+    clampPan();
+    applyZoomToCurrent();
+    updateZoomLabel();
+  }
+
+  function zoomOut() {
+    zoomScale = Math.max(ZOOM_MIN, zoomScale / ZOOM_STEP);
+    if (zoomScale <= 1.001) {
+      zoomScale = 1;
+      panX = 0;
+      panY = 0;
+    }
+    clampPan();
+    applyZoomToCurrent();
+    updateZoomLabel();
   }
 
   images.forEach(function (src) {
     const page = document.createElement("div");
     page.className = "page";
+    const wrap = document.createElement("div");
+    wrap.className = "page-zoom-wrap";
+    const inner = document.createElement("div");
+    inner.className = "page-zoom-inner";
     const img = document.createElement("img");
     img.src = src;
     img.alt = "";
     img.draggable = false;
-    page.appendChild(img);
+    inner.appendChild(img);
+    wrap.appendChild(inner);
+    page.appendChild(wrap);
     book.appendChild(page);
     pages.push(page);
   });
@@ -72,6 +150,10 @@
   }
 
   function applyStaticView() {
+    if (zoomChrome && lastZoomResetAtPage !== current) {
+      lastZoomResetAtPage = current;
+      resetDesktopZoomState();
+    }
     pages.forEach(function (p, i) {
       resetPageEl(p);
       if (i === current) {
@@ -83,391 +165,139 @@
     updateIndicator();
   }
 
-  function finishAnim() {
-    animating = false;
-    applyStaticView();
-  }
-
-  function clearInlineFlipStyles(p) {
-    if (!p) return;
-    p.style.transition = "";
-    p.style.transform = "";
-    p.style.filter = "";
-    p.style.boxShadow = "";
-  }
-
   function nextPage() {
     if (animating || current >= images.length - 1) return;
-    if (reduceMotion) {
-      current++;
-      applyStaticView();
-      return;
-    }
-
-    animating = true;
-    const oldIdx = current;
-    const newIdx = current + 1;
-    const oldPage = pages[oldIdx];
-    const newPage = pages[newIdx];
-
-    pages.forEach(resetPageEl);
-
-    newPage.classList.add("below-next");
-    oldPage.classList.add("is-active");
-
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        oldPage.classList.remove("is-active");
-        oldPage.classList.add("flip-out-next");
-      });
-    });
-
-    let done = false;
-    function complete() {
-      if (done) return;
-      done = true;
-      oldPage.removeEventListener("transitionend", onTransEnd);
-      current = newIdx;
-      finishAnim();
-    }
-
-    function onTransEnd(e) {
-      if (e.propertyName !== "transform") return;
-      complete();
-    }
-
-    oldPage.addEventListener("transitionend", onTransEnd);
-    window.setTimeout(complete, FLIP_MS + 80);
+    current++;
+    applyStaticView();
   }
 
   function prevPage() {
     if (animating || current <= 0) return;
-    if (reduceMotion) {
-      current--;
-      applyStaticView();
-      return;
-    }
-
-    animating = true;
-    const oldIdx = current;
-    const newIdx = current - 1;
-    const oldPage = pages[oldIdx];
-    const newPage = pages[newIdx];
-
-    pages.forEach(resetPageEl);
-
-    newPage.style.transformOrigin = "right center";
-    newPage.classList.add("below-prev");
-    oldPage.classList.add("is-active");
-
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        oldPage.classList.remove("is-active");
-        oldPage.classList.add("flip-out-prev");
-      });
-    });
-
-    let done = false;
-    function complete() {
-      if (done) return;
-      done = true;
-      oldPage.removeEventListener("transitionend", onTransEnd);
-      current = newIdx;
-      newPage.style.transformOrigin = "";
-      finishAnim();
-    }
-
-    function onTransEnd(e) {
-      if (e.propertyName !== "transform") return;
-      complete();
-    }
-
-    oldPage.addEventListener("transitionend", onTransEnd);
-    window.setTimeout(complete, FLIP_MS + 80);
+    current--;
+    applyStaticView();
   }
 
   window.nextPage = nextPage;
   window.prevPage = prevPage;
 
   let suppressClick = false;
-
-  document.addEventListener(
-    "click",
-    function (e) {
-      if (suppressClick) return;
-      if (animating) return;
-      if (e.target.closest(".controls")) return;
-      if (e.clientX > window.innerWidth / 2) {
-        nextPage();
-      } else {
-        prevPage();
-      }
-    },
-    false
-  );
+  // 依需求：不要點任何位置翻頁，只能用底部按鈕。
 
   document.addEventListener("keydown", function (e) {
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (desktopZoom) {
+      if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        zoomIn();
+        return;
+      }
+      if (e.key === "-" || e.key === "_") {
+        e.preventDefault();
+        zoomOut();
+        return;
+      }
+      if (e.key === "0") {
+        e.preventDefault();
+        resetDesktopZoomState();
+        return;
+      }
+    }
     if (animating) return;
     if (e.key === "ArrowRight") nextPage();
     if (e.key === "ArrowLeft") prevPage();
   });
 
-  /** 非觸控拖曳模式：保留滑一下翻頁 */
-  if (!interactiveTouch && !reduceMotion) {
-    let startX = 0;
-    document.addEventListener("touchstart", function (e) {
-      if (e.target.closest(".controls")) return;
-      startX = e.touches[0].clientX;
+  /** 內層縮放 + 放大後拖曳平移（不影響翻頁按鈕） */
+  if (zoomChrome) {
+    const bar = document.createElement("div");
+    bar.id = "zoom-controls";
+    bar.setAttribute("aria-label", "縮放");
+    const hintText = desktopZoom
+      ? "Ctrl + 滾輪 縮放 · 放大後可拖曳平移"
+      : "＋／− 縮放圖片 · 放大後可拖曳平移";
+    if (!desktopZoom) bar.classList.add("touch-bar");
+    bar.innerHTML =
+      '<span class="zoom-hint">' +
+      hintText +
+      "</span>" +
+      '<div class="zoom-buttons">' +
+      '<button type="button" class="zoom-btn" id="zoom-out" title="縮小">−</button>' +
+      '<span id="zoom-level">100%</span>' +
+      '<button type="button" class="zoom-btn" id="zoom-in" title="放大">+</button>' +
+      '<button type="button" class="zoom-btn" id="zoom-reset" title="重設為 100%">100%</button>' +
+      "</div>";
+
+    document.body.appendChild(bar);
+
+    document.getElementById("zoom-in").addEventListener("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      zoomIn();
     });
-    document.addEventListener("touchend", function (e) {
-      if (animating) return;
-      if (e.target.closest(".controls")) return;
-      const endX = e.changedTouches[0].clientX;
-      if (endX - startX > 50) prevPage();
-      if (startX - endX > 50) nextPage();
+    document.getElementById("zoom-out").addEventListener("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      zoomOut();
     });
-  }
+    document.getElementById("zoom-reset").addEventListener("click", function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      resetDesktopZoomState();
+    });
 
-  /** 手機：拖曳跟隨，可半翻；放開後依進度／速度完成或彈回 */
-  if (interactiveTouch && !reduceMotion) {
-    const COMMIT_PROGRESS = 0.38;
-    /** px/ms，超過視為甩頁完成翻頁 */
-    const VELOCITY_COMMIT = 0.38;
+    if (desktopZoom) {
+      book.addEventListener(
+        "wheel",
+        function (e) {
+          if (!e.ctrlKey && !e.metaKey) return;
+          e.preventDefault();
+          if (e.deltaY < 0) zoomIn();
+          else zoomOut();
+        },
+        { passive: false }
+      );
+    }
 
-    let dragActive = false;
-    let pointerId = null;
-    let startX = 0;
-    let direction = null;
-    let oldPage = null;
-    let revealPage = null;
-    let mode = null;
-
-    let lastX = 0;
-    let lastT = 0;
-
-    function onPointerDown(e) {
-      if (animating) return;
+    book.addEventListener("pointerdown", function (e) {
       if (e.target.closest(".controls")) return;
-      if (e.target.closest("#page-indicator")) return;
+      if (e.target.closest("#zoom-controls")) return;
+      if (zoomScale <= 1.03) return;
+      if (!e.target.closest(".page-zoom-wrap")) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      panDrag = {
+        pointerId: e.pointerId,
+        sx: e.clientX,
+        sy: e.clientY,
+        ox: panX,
+        oy: panY,
+      };
+    });
 
-      dragActive = true;
-      pointerId = e.pointerId;
-      startX = e.clientX;
-      direction = null;
-      mode = null;
-      oldPage = null;
-      revealPage = null;
-      lastX = startX;
-      lastT = Date.now();
+    window.addEventListener("pointermove", function (e) {
+      if (!panDrag || e.pointerId !== panDrag.pointerId) return;
+      panX = panDrag.ox + (e.clientX - panDrag.sx);
+      panY = panDrag.oy + (e.clientY - panDrag.sy);
+      clampPan();
+      applyZoomToCurrent();
+    });
 
-      book.setPointerCapture(e.pointerId);
-    }
-
-    function applyDragTransform(angleSigned) {
-      const t = Math.min(1, Math.abs(angleSigned) / MAX_ANGLE);
-      const bright = 1 - 0.1 * t;
-      oldPage.classList.add("no-flip-transition");
-      oldPage.style.transition = "none";
-      oldPage.style.filter = "brightness(" + bright + ")";
-      if (mode === "next") {
-        oldPage.style.transformOrigin = "left center";
-        oldPage.style.transform =
-          "rotateY(" + -Math.abs(angleSigned) + "deg) translateZ(-4px)";
-        oldPage.style.boxShadow = "-6px 0 18px rgba(0,0,0,0.3)";
-      } else {
-        oldPage.style.transformOrigin = "right center";
-        oldPage.style.transform =
-          "rotateY(" + Math.abs(angleSigned) + "deg) translateZ(-4px)";
-        oldPage.style.boxShadow = "6px 0 18px rgba(0,0,0,0.3)";
+    window.addEventListener("pointerup", function (e) {
+      if (!panDrag || e.pointerId !== panDrag.pointerId) return;
+      const dx = e.clientX - panDrag.sx;
+      const dy = e.clientY - panDrag.sy;
+      if (Math.hypot(dx, dy) > 10) {
+        suppressClick = true;
+        window.setTimeout(function () {
+          suppressClick = false;
+        }, 220);
       }
-    }
-
-    function endDrag(e) {
-      if (!dragActive || e.pointerId !== pointerId) return;
-      dragActive = false;
-      try {
-        book.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-
-      if (!oldPage || !mode || direction === null) {
-        dragActive = false;
-        applyStaticView();
-        return;
-      }
-
-      const pageEl = oldPage;
-      const commitMode = mode;
-
-      const dx = e.clientX - startX;
-      const fd = fullDragPx();
-      let progress = 0;
-      if (mode === "next") {
-        progress = Math.min(1, Math.abs(Math.min(0, dx)) / fd);
-      } else {
-        progress = Math.min(1, Math.max(0, dx) / fd);
-      }
-
-      const now = Date.now();
-      const dt = Math.max(1, now - lastT);
-      const vx = (e.clientX - lastX) / dt;
-
-      let commit = false;
-      if (commitMode === "next") {
-        commit =
-          progress >= COMMIT_PROGRESS ||
-          vx < -VELOCITY_COMMIT ||
-          (progress >= 0.22 && vx < -0.25);
-      } else {
-        commit =
-          progress >= COMMIT_PROGRESS ||
-          vx > VELOCITY_COMMIT ||
-          (progress >= 0.22 && vx > 0.25);
-      }
-
-      animating = true;
-      suppressClick = true;
-      window.setTimeout(function () {
-        suppressClick = false;
-      }, 450);
-
-      if (commit) {
-        pageEl.classList.add("no-flip-transition");
-        pageEl.style.transition =
-          "transform 0.32s cubic-bezier(0.25, 0.85, 0.3, 1), filter 0.28s ease, box-shadow 0.28s ease";
-        if (commitMode === "next") {
-          pageEl.style.transform =
-            "rotateY(-" + MAX_ANGLE + "deg) translateZ(-4px)";
-          pageEl.style.filter = "brightness(0.92)";
-        } else {
-          pageEl.style.transform =
-            "rotateY(" + MAX_ANGLE + "deg) translateZ(-4px)";
-          pageEl.style.filter = "brightness(0.92)";
-        }
-
-        let settled = false;
-        function settle() {
-          if (settled) return;
-          settled = true;
-          pageEl.removeEventListener("transitionend", onSettle);
-          if (commitMode === "next") {
-            current = current + 1;
-          } else {
-            current = current - 1;
-          }
-          finishAnim();
-        }
-
-        function onSettle(ev) {
-          if (ev.propertyName !== "transform") return;
-          settle();
-        }
-
-        pageEl.addEventListener("transitionend", onSettle);
-        window.setTimeout(settle, 420);
-      } else {
-        pageEl.classList.add("no-flip-transition");
-        pageEl.style.transition =
-          "transform 0.38s cubic-bezier(0.34, 1.3, 0.64, 1), filter 0.3s ease, box-shadow 0.3s ease";
-        pageEl.style.transform = "rotateY(0deg) translateZ(0)";
-        pageEl.style.filter = "";
-        pageEl.style.boxShadow = "";
-
-        let settled = false;
-        function settleBack() {
-          if (settled) return;
-          settled = true;
-          pageEl.removeEventListener("transitionend", onBack);
-          finishAnim();
-        }
-
-        function onBack(ev) {
-          if (ev.propertyName !== "transform") return;
-          settleBack();
-        }
-
-        pageEl.addEventListener("transitionend", onBack);
-        window.setTimeout(settleBack, 450);
-      }
-
-      pointerId = null;
-      oldPage = null;
-      revealPage = null;
-      mode = null;
-    }
-
-    function onPointerMove(e) {
-      if (!dragActive || e.pointerId !== pointerId) return;
-
-      const dx = e.clientX - startX;
-      lastX = e.clientX;
-      lastT = Date.now();
-
-      if (direction === null && Math.abs(dx) > 12) {
-        direction = dx < 0 ? "next" : "prev";
-        if (direction === "next" && current >= images.length - 1) {
-          dragActive = false;
-          try {
-            book.releasePointerCapture(e.pointerId);
-          } catch (err2) {}
-          applyStaticView();
-          return;
-        }
-        if (direction === "prev" && current <= 0) {
-          dragActive = false;
-          try {
-            book.releasePointerCapture(e.pointerId);
-          } catch (err3) {}
-          applyStaticView();
-          return;
-        }
-
-        mode = direction === "next" ? "next" : "prev";
-        pages.forEach(resetPageEl);
-
-        if (mode === "next") {
-          oldPage = pages[current];
-          revealPage = pages[current + 1];
-          revealPage.classList.add("below-next");
-        } else {
-          oldPage = pages[current];
-          revealPage = pages[current - 1];
-          revealPage.style.transformOrigin = "right center";
-          revealPage.classList.add("below-prev");
-        }
-        oldPage.classList.add("is-active");
-        oldPage.style.zIndex = "3";
-        revealPage.style.zIndex = "1";
-      }
-
-      if (!mode || !oldPage) return;
-
-      const fd = fullDragPx();
-      let ang = 0;
-      if (mode === "next") {
-        const p = Math.min(1, Math.abs(Math.min(0, dx)) / fd);
-        ang = MAX_ANGLE * p;
-        applyDragTransform(-ang);
-      } else {
-        const p = Math.min(1, Math.max(0, dx) / fd);
-        ang = MAX_ANGLE * p;
-        applyDragTransform(ang);
-      }
-    }
-
-    function onPointerUp(e) {
-      if (!dragActive || e.pointerId !== pointerId) return;
-      endDrag(e);
-    }
-
-    function onPointerCancel(e) {
-      if (!dragActive || e.pointerId !== pointerId) return;
-      endDrag(e);
-    }
-
-    book.addEventListener("pointerdown", onPointerDown);
-    book.addEventListener("pointermove", onPointerMove);
-    book.addEventListener("pointerup", onPointerUp);
-    book.addEventListener("pointercancel", onPointerCancel);
+      panDrag = null;
+    });
+    window.addEventListener("pointercancel", function (e) {
+      if (!panDrag || e.pointerId !== panDrag.pointerId) return;
+      panDrag = null;
+    });
   }
 
   applyStaticView();
