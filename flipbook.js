@@ -46,6 +46,12 @@
 
   function applyZoomToInner(inner) {
     if (!inner) return;
+    // Windows/Chrome：任何 transform（即使 scale(1)）都可能導致插值變糊。
+    // 因此未縮放/未平移時直接用 transform:none，避免電腦端「失真」。
+    if (zoomScale === 1 && panX === 0 && panY === 0) {
+      inner.style.transform = "none";
+      return;
+    }
     inner.style.transform =
       "translate(" + panX + "px," + panY + "px) scale(" + zoomScale + ")";
   }
