@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>我的書櫃</title>
+<title>請將我深埋</title>
 
 <style>
 body {
   margin: 0;
-  background: #111;
+  background: #111 url("https://i.postimg.cc/RV4tQyjb/1-S-5.jpg") center / cover no-repeat fixed;
   color: white;
   font-family: sans-serif;
   display: flex;
@@ -17,11 +17,21 @@ body {
   min-height: 100vh;
 }
 
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
 .container {
   text-align: center;
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
   max-width: 360px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 h1 {
@@ -54,13 +64,13 @@ button:hover {
 <body>
 
 <div class="container">
-  <h1>📚 我的書櫃</h1>
-  <button type="button" onclick="location.href='小野可可/小野可可.html'">小野可可</button>
-  <button type="button" onclick="location.href='森田木果/森田木果.html'">森田木果</button>
-  <button type="button" onclick="location.href='藤原子蛟/藤原子蛟.html'">藤原子蛟</button>
-  <button type="button" onclick="location.href='酒井艺/酒井艺.html'">酒井艺</button>
-  <button type="button" onclick="location.href='高木折浩/高木折浩.html'">高木折浩</button>
-  <button type="button" onclick="location.href='高海敏/高海敏.html'">高海敏</button>
+  <h1>請將我深埋</h1>
+  <button type="button" onclick="location.href='小野可可1/小野可可1.html'">小野可可</button>
+  <button type="button" onclick="location.href='森田木果1/森田木果1.html'">森田木果</button>
+  <button type="button" onclick="location.href='藤原子蛟1/藤原子蛟1.html'">藤原子蛟</button>
+  <button type="button" onclick="location.href='酒井艺1/酒井艺1.html'">酒井艺</button>
+  <button type="button" onclick="location.href='高木折浩1/高木折浩1.html'">高木折浩</button>
+  <button type="button" onclick="location.href='高海敏1/高海敏1.html'">高海敏</button>
 </div>
 
 </body>

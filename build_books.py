@@ -79,9 +79,15 @@ def main() -> None:
         return s.replace("\\", "\\\\").replace("'", "\\'")
 
     # index.html
+    entry_map = {name: html_name for name, html_name in entries}
     buttons = []
     for name, html_name in sorted(entries, key=lambda x: x[0]):
-        href = esc_js_str(name + "/" + html_name)
+        # 首頁只顯示「角色本名」按鈕；但點進去導到「角色1」版本（若存在）
+        if name.endswith("1"):
+            continue
+        target_name = name + "1" if (name + "1") in entry_map else name
+        target_html = entry_map.get(target_name, html_name)
+        href = esc_js_str(target_name + "/" + target_html)
         label_esc = (
             name.replace("&", "&amp;")
             .replace("<", "&lt;")
@@ -96,7 +102,7 @@ def main() -> None:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>我的書櫃</title>
+<title>請將我深埋</title>
 
 <style>
 body {{
@@ -147,7 +153,7 @@ button:hover {{
 <body>
 
 <div class="container">
-  <h1>📚 我的書櫃</h1>
+  <h1>請將我深埋</h1>
 {chr(10).join(buttons)}
 </div>
 

@@ -32,7 +32,7 @@ body {
   /* 已移除縮放工具列 */
   --top-ui-zoom: 0px;
   --book-max-w: 980px;
-  --book-max-h: 820px;
+  --book-max-h: 760px;
 }
 
 /* 閱讀區：以可用視窗高度為準，永遠避開上/下 UI */
@@ -40,7 +40,7 @@ body {
   position: relative;
   width: min(92vw, var(--book-max-w));
   height: min(
-    82vh,
+    76vh,
     var(--book-max-h),
     calc(
       100dvh - (var(--top-ui-zoom) + var(--bottom-ui-controls) + var(--bottom-ui-indicator) + var(--page-gap) * 2)
@@ -68,12 +68,12 @@ body {
     --bottom-ui-indicator: 24px;
     --top-ui-zoom: 0px;
     --book-max-w: 560px;
-    --book-max-h: 560px;
+    --book-max-h: 520px;
   }
   #book {
     width: min(96vw, var(--book-max-w));
     height: min(
-      72vh,
+      64vh,
       var(--book-max-h),
       calc(
         100dvh - (var(--top-ui-zoom) + var(--bottom-ui-controls) + var(--bottom-ui-indicator) + var(--page-gap) * 2)
